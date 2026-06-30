@@ -149,7 +149,7 @@ Popup ──(GET_STATUS)──────────────▶ Background
 
 ## 🔄 更新日誌
 
-### v2.0（2025-06-30）
+### v2.0（2026-06-30）
 - ✨ 新增 Background Service Worker
 - ✨ 新增開賣時間排程功能
 - ✨ 新增多票種備援（三個志願）
