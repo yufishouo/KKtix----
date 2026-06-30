@@ -135,7 +135,8 @@ async function setupSaleAlarm(saleTimeISO) {
 function sendNotification(title, message) {
     chrome.notifications.create({
         type: 'basic',
-        iconUrl: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎫</text></svg>'),
+        // Chrome Notifications API 不支援 SVG data URI，改用 1x1 透明 PNG 避免報錯
+        iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
         title: `KKTIX 搶票小幫手 — ${title}`,
         message: message
     });
