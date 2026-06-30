@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KKTIX 搶票小幫手",
-  "version": "2.0",
+  "version": "2.1",
   "description": "輔助 KKTIX 快速選票與購票，支援自動偵測倒數、多票種備援、開賣排程、操作日誌等功能。",
   "permissions": [
     "storage",

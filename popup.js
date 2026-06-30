@@ -109,13 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
             chrome.storage.sync.set(config, () => {
                 showSaveStatus('✅ 設定已儲存！');
 
-                // Setup alarm if sale time is set
-                if (config.saleTime) {
-                    chrome.runtime.sendMessage({
-                        type: 'SETUP_ALARM',
-                        saleTime: config.saleTime
-                    });
-                }
+                // Setup alarm (or clear it if sale time is empty)
+                chrome.runtime.sendMessage({
+                    type: 'SETUP_ALARM',
+                    saleTime: config.saleTime
+                });
 
                 updateCountdown(config.saleTime);
             });

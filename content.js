@@ -82,7 +82,7 @@ function check502503(config) {
                   bodyText.includes('Service Temporarily Unavailable');
 
     if (is502) {
-        const delay = 1000 + Math.floor(Math.random() * 2000);
+        const delay = 500 + Math.floor(Math.random() * 500); // 500-1000ms
         console.log(`[KKTIX Helper] Detected error page, retrying in ${delay}ms...`);
         updateStatusBadge(`🔁 偵測到 502/503 錯誤，${(delay / 1000).toFixed(1)} 秒後自動重試...`);
         reportStatus('retry', '502/503', `偵測到伺服器錯誤頁面，${delay}ms 後重試`);
@@ -172,16 +172,31 @@ function handleEventPage(config) {
 
         if (!targetBtn) targetBtn = buttons[0];
 
-        if (targetBtn.textContent.includes('尚未開賣')) {
+        const isDisabled = targetBtn.disabled || targetBtn.classList.contains('disabled') || 
+                           targetBtn.textContent.includes('尚未開賣') || targetBtn.textContent.includes('即將開賣');
+
+        if (isDisabled) {
             if (config.autoRefresh) {
-                const delay = 1000 + Math.floor(Math.random() * 2000);
-                console.log(`[KKTIX Helper] Not on sale yet, refreshing in ${delay}ms...`);
-                updateStatusBadge(`🎫 尚未開賣，${(delay / 1000).toFixed(1)} 秒後重新整理...`);
-                reportStatus('refreshing', '尚未開賣', `尚未開賣，${delay}ms 後重新整理`);
+                let delay = 1000;
+                if (config.saleTime) {
+                    const diff = new Date(config.saleTime).getTime() - Date.now();
+                    if (diff < 10000 && diff > 0) {
+                        delay = 300 + Math.random() * 300; // 倒數 10 秒內，極速重整 (300-600ms)
+                    } else if (diff < 0) {
+                        delay = 500 + Math.random() * 500; // 已過開賣時間但按鈕仍鎖住，快速重整 (500-1000ms)
+                    } else {
+                        delay = 1500 + Math.random() * 1000; // 距離開賣還很久，適度重整 (1.5-2.5s)
+                    }
+                } else {
+                    delay = 800 + Math.random() * 700; // 沒設定時間，預設 800-1500ms
+                }
+                console.log(`[KKTIX Helper] Not on sale yet, refreshing in ${delay.toFixed(0)}ms...`);
+                updateStatusBadge(`🎫 尚未開賣，${(delay / 1000).toFixed(2)} 秒後重新整理...`);
+                reportStatus('refreshing', '尚未開賣', `尚未開賣，${delay.toFixed(0)}ms 後重新整理`);
                 clearInterval(eventPageInterval);
                 refreshTimeoutId = setTimeout(() => location.reload(), delay);
             }
-        } else if (!targetBtn.disabled && !targetBtn.classList.contains('disabled')) {
+        } else {
             if (config.autoSelectSession) {
                 console.log("[KKTIX Helper] Countdown finished! Clicking ticket button!");
                 updateStatusBadge('🎫 倒數結束！正在進入選票頁面...');
@@ -189,6 +204,9 @@ function handleEventPage(config) {
                 reportNotify('倒數結束', '已自動點擊進入選票頁面！');
                 clearInterval(eventPageInterval);
                 targetBtn.click();
+                if (targetBtn.tagName.toLowerCase() === 'a' && targetBtn.href) {
+                    location.href = targetBtn.href;
+                }
             } else {
                 updateStatusBadge('🎫 已開賣！請手動點擊按鈕進入');
                 reportStatus('watching', '已開賣', '已開賣，等待手動點擊');
@@ -207,7 +225,7 @@ async function handleRegistrationPage(config) {
     reportStatus('filling', '載入票種', '進入選票頁面，等待票種列表載入');
 
     try {
-        await waitForElement('.ticket-list', 30000);
+        await waitForElement('.ticket-list > .ng-scope, .ticket-list .ticket-row, .display-table-row', 30000);
         console.log("[KKTIX Helper] Ticket list found.");
         reportStatus('filling', '票種列表已載入', '票種列表已載入');
 
@@ -276,13 +294,33 @@ async function handleRegistrationPage(config) {
                         }
                     }
                 } else {
-                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype, 'value'
-                    )?.set;
-                    if (nativeInputValueSetter) {
-                        nativeInputValueSetter.call(qtyInput, config.quantity);
+                    // Try to click "+" button if available (most robust for modern frameworks)
+                    const buttons = selectedRow.querySelectorAll('button');
+                    let plusBtn = null;
+                    for (const btn of buttons) {
+                        if (btn.textContent.includes('+') || btn.querySelector('.fa-plus') || btn.classList.contains('plus')) {
+                            plusBtn = btn;
+                            break;
+                        }
+                    }
+
+                    if (plusBtn) {
+                        const currentQty = parseInt(qtyInput.value, 10) || 0;
+                        const targetQty = parseInt(config.quantity, 10) || 1;
+                        let clicksNeeded = targetQty - currentQty;
+                        while (clicksNeeded > 0) {
+                            plusBtn.click();
+                            clicksNeeded--;
+                        }
                     } else {
-                        qtyInput.value = config.quantity;
+                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        )?.set;
+                        if (nativeInputValueSetter) {
+                            nativeInputValueSetter.call(qtyInput, config.quantity);
+                        } else {
+                            qtyInput.value = config.quantity;
+                        }
                     }
                 }
 
@@ -354,22 +392,29 @@ async function handleRegistrationPage(config) {
                 updateStatusBadge('🎫 偵測到驗證碼/問題，請手動填寫後送出');
                 reportStatus('filling', '等待手動提交', '偵測到驗證碼/自訂問題，跳過自動提交');
             } else {
-                // 等待一小段時間確保框架已更新
-                await new Promise(r => setTimeout(r, 500));
+                // Wait for submit button to be enabled (up to 3 seconds for AJAX price calc)
+                let submitBtn = null;
+                for (let i = 0; i < 15; i++) {
+                    const btns = document.querySelectorAll(
+                        'button[type="submit"], .btn-primary, input[type="submit"], button.submit-btn, .register-new-next-button-area button'
+                    );
+                    submitBtn = Array.from(btns).find(b => 
+                        !b.disabled && 
+                        !b.classList.contains('disabled') &&
+                        (b.type === 'submit' || b.classList.contains('btn-primary') || b.textContent.includes('下一步') || b.textContent.includes('確認'))
+                    );
+                    if (submitBtn) break;
+                    await new Promise(r => setTimeout(r, 200));
+                }
 
-                const submitBtn = document.querySelector(
-                    'button[type="submit"], .btn-primary:not([disabled]), ' +
-                    'input[type="submit"], button.submit-btn, ' +
-                    '.register-new-next-button-area button'
-                );
-                if (submitBtn && !submitBtn.disabled) {
+                if (submitBtn) {
                     console.log("[KKTIX Helper] Auto-submitting (no CAPTCHA detected)...");
                     updateStatusBadge('🎫 自動提交中...');
                     reportStatus('success', '自動提交', '無驗證碼，自動點擊「下一步」');
                     submitBtn.click();
                     reportNotify('自動提交', '已自動點擊「下一步」！請繼續完成後續步驟。');
                 } else {
-                    console.log("[KKTIX Helper] Submit button not found or disabled.");
+                    console.log("[KKTIX Helper] Submit button not found or disabled after waiting.");
                     updateStatusBadge('🎫 自動化完成！請手動點擊下一步');
                     reportStatus('filling', '等待手動提交', '提交按鈕未找到或不可用');
                 }
@@ -408,6 +453,10 @@ function run() {
     }, (config) => {
         // 先檢查 502/503
         if (check502503(config)) return;
+
+        // Clear previous intervals/timeouts for SPA navigations
+        if (eventPageInterval) clearInterval(eventPageInterval);
+        if (refreshTimeoutId) clearTimeout(refreshTimeoutId);
 
         const url = window.location.href;
 

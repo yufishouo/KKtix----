@@ -11,7 +11,25 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // ---------- 狀態管理 ----------
-const tabStates = {}; // tabId -> { status, lastUpdate }
+async function getTabStates() {
+    const data = await chrome.storage.session.get({ tabStates: {} });
+    return data.tabStates;
+}
+
+async function updateTabState(tabId, stateObj) {
+    const tabStates = await getTabStates();
+    tabStates[tabId] = stateObj;
+    await chrome.storage.session.set({ tabStates });
+}
+
+async function removeTabState(tabId) {
+    const tabStates = await getTabStates();
+    if (tabStates[tabId]) {
+        delete tabStates[tabId];
+        await chrome.storage.session.set({ tabStates });
+    }
+    return Object.keys(tabStates).length;
+}
 
 function updateBadge(status) {
     const badges = {
@@ -60,9 +78,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         const config = await chrome.storage.sync.get({ targetUrl: '', autoRefresh: true });
         if (config.targetUrl) {
             // 檢查是否已有開啟的分頁
-            const tabs = await chrome.tabs.query({ url: '*://*.kktix.com/*' });
-            const kktixTabs = tabs.concat(await chrome.tabs.query({ url: '*://*.kktix.cc/*' }));
-            const existingTab = kktixTabs.find(t => t.url && t.url.includes(config.targetUrl.replace(/https?:\/\//, '')));
+            const tabs = await chrome.tabs.query({ url: ['*://*.kktix.com/*', '*://*.kktix.cc/*'] });
+            const existingTab = tabs.find(t => t.url && t.url.includes(config.targetUrl.replace(/https?:\/\//, '')));
 
             if (existingTab) {
                 await chrome.tabs.reload(existingTab.id);
@@ -130,12 +147,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         switch (msg.type) {
             case 'STATUS_UPDATE':
                 if (sender.tab) {
-                    tabStates[sender.tab.id] = {
+                    await updateTabState(sender.tab.id, {
                         status: msg.status,
                         detail: msg.detail || '',
                         url: sender.tab.url,
                         lastUpdate: Date.now()
-                    };
+                    });
                 }
                 updateBadge(msg.status);
                 if (msg.log) {
@@ -151,7 +168,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 break;
 
             case 'GET_STATUS':
-                sendResponse({ tabStates, badge: await chrome.action.getBadgeText({}) });
+                sendResponse({ tabStates: await getTabStates(), badge: await chrome.action.getBadgeText({}) });
                 break;
 
             case 'GET_LOGS':
@@ -183,11 +200,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // 分頁關閉時清除狀態
 chrome.tabs.onRemoved.addListener((tabId) => {
-    delete tabStates[tabId];
-    // 若無活躍分頁，重置 badge
-    if (Object.keys(tabStates).length === 0) {
-        updateBadge('idle');
-    }
+    (async () => {
+        const remaining = await removeTabState(tabId);
+        // 若無活躍分頁，重置 badge
+        if (remaining === 0) {
+            updateBadge('idle');
+        }
+    })();
 });
 
 console.log("[KKTIX BG] Background service worker started.");
