@@ -204,9 +204,6 @@ function handleEventPage(config) {
                 reportNotify('倒數結束', '已自動點擊進入選票頁面！');
                 clearInterval(eventPageInterval);
                 targetBtn.click();
-                if (targetBtn.tagName.toLowerCase() === 'a' && targetBtn.href) {
-                    location.href = targetBtn.href;
-                }
             } else {
                 updateStatusBadge('🎫 已開賣！請手動點擊按鈕進入');
                 reportStatus('watching', '已開賣', '已開賣，等待手動點擊');
