@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "KKTIX 搶票小幫手",
+  "version": "2.0",
+  "description": "輔助 KKTIX 快速選票與購票，支援自動偵測倒數、多票種備援、開賣排程、操作日誌等功能。",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "notifications",
+    "alarms",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.kktix.cc/*",
+    "*://*.kktix.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "KKTIX 搶票設定"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.kktix.cc/*",
+        "*://*.kktix.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

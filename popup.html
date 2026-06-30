@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>KKTIX 搶票設定</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-title">
+                <span class="logo">🎫</span>
+                <h1>KKTIX 搶票小幫手</h1>
+                <span class="version">v2.0</span>
+            </div>
+            <div class="status-bar" id="statusBar">
+                <span class="status-dot" id="statusDot"></span>
+                <span class="status-text" id="statusText">載入中...</span>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tabs">
+            <button class="tab active" data-tab="settings">⚙️ 設定</button>
+            <button class="tab" data-tab="logs">📋 日誌</button>
+            <button class="tab" data-tab="about">ℹ️ 關於</button>
+        </nav>
+
+        <!-- Settings Tab -->
+        <div class="tab-content active" id="tab-settings">
+            <!-- 目標活動 -->
+            <section class="section">
+                <h3 class="section-title">🎯 目標活動</h3>
+                <div class="form-group">
+                    <label for="targetUrl">活動 URL</label>
+                    <input type="url" id="targetUrl" placeholder="https://kktix.com/events/...">
+                    <button class="btn-small btn-open" id="openUrlBtn" title="開啟此 URL">🔗</button>
+                </div>
+                <div class="form-group">
+                    <label for="saleTime">開賣時間</label>
+                    <input type="datetime-local" id="saleTime">
+                    <div class="countdown-display" id="countdownDisplay"></div>
+                </div>
+            </section>
+
+            <!-- 場次設定 -->
+            <section class="section">
+                <h3 class="section-title">🎪 場次設定</h3>
+                <div class="form-group">
+                    <label for="sessionKeyword">場次關鍵字</label>
+                    <input type="text" id="sessionKeyword" placeholder="如: 台北場, 12/25（留空選第一個）">
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="autoSelectSession">
+                    <label for="autoSelectSession">自動點選進入該場次</label>
+                </div>
+            </section>
+
+            <!-- 票種設定 -->
+            <section class="section">
+                <h3 class="section-title">🎫 票種設定（多票種備援）</h3>
+                <div class="form-group">
+                    <label for="keyword">第一志願</label>
+                    <input type="text" id="keyword" placeholder="如: VIP, 特區">
+                </div>
+                <div class="form-group">
+                    <label for="keyword2">第二志願</label>
+                    <input type="text" id="keyword2" placeholder="第一志願售完自動切換">
+                </div>
+                <div class="form-group">
+                    <label for="keyword3">第三志願</label>
+                    <input type="text" id="keyword3" placeholder="留空 = 選任何有票的">
+                </div>
+                <div class="form-group">
+                    <label for="quantity">購買張數</label>
+                    <select id="quantity">
+                        <option value="1">1 張</option>
+                        <option value="2">2 張</option>
+                        <option value="3">3 張</option>
+                        <option value="4">4 張</option>
+                        <option value="5">5 張</option>
+                        <option value="6">6 張</option>
+                        <option value="7">7 張</option>
+                        <option value="8">8 張</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- 自動化選項 -->
+            <section class="section">
+                <h3 class="section-title">⚡ 自動化選項</h3>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="autoRefresh">
+                    <label for="autoRefresh">未開賣時自動重新整理</label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="autoAgree">
+                    <label for="autoAgree">自動勾選同意條款</label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="autoSubmit">
+                    <label for="autoSubmit">自動提交（無驗證碼時）</label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="autoRetry">
+                    <label for="autoRetry">502/503 錯誤自動重試</label>
+                </div>
+            </section>
+
+            <!-- 操作按鈕 -->
+            <div class="actions">
+                <button class="btn btn-primary" id="saveBtn">💾 儲存設定</button>
+                <div class="actions-row">
+                    <button class="btn btn-secondary" id="exportBtn">📤 匯出</button>
+                    <button class="btn btn-secondary" id="importBtn">📥 匯入</button>
+                    <input type="file" id="importFile" accept=".json" style="display:none">
+                </div>
+            </div>
+            <div class="save-status" id="saveStatus"></div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div class="tab-content" id="tab-logs">
+            <div class="logs-header">
+                <h3 class="section-title">📋 操作日誌</h3>
+                <button class="btn btn-danger btn-small" id="clearLogsBtn">🗑️ 清除</button>
+            </div>
+            <div class="logs-container" id="logsContainer">
+                <div class="logs-empty">尚無日誌記錄</div>
+            </div>
+        </div>
+
+        <!-- About Tab -->
+        <div class="tab-content" id="tab-about">
+            <div class="about-content">
+                <div class="about-icon">🎫</div>
+                <h2>KKTIX 搶票小幫手</h2>
+                <p class="about-version">Version 2.0</p>
+                <div class="about-features">
+                    <h4>功能特色</h4>
+                    <ul>
+                        <li>⏰ 開賣時間排程，自動開啟頁面</li>
+                        <li>🎯 多票種備援，三個志願依序嘗試</li>
+                        <li>⚡ 自動填數量、勾同意、提交</li>
+                        <li>🔁 502/503 錯誤自動重試</li>
+                        <li>📋 完整操作日誌記錄</li>
+                        <li>🔔 系統桌面通知</li>
+                        <li>📤 設定匯出/匯入分享</li>
+                    </ul>
+                </div>
+                <p class="about-disclaimer">⚠️ 此工具僅供輔助使用，請遵守 KKTIX 使用規範。</p>
+            </div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
